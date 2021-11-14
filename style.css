@@ -1,0 +1,67 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  box-sizing: border-box;
+  font-size: 16px;
+}
+
+h1, h2, h3, h4, h5, h6, p {
+  margin: 15px 0 5px 0;
+  padding: 0;
+  font-size: 20px;
+  border-bottom: 1px solid #000;
+}
+
+h1 {
+  font-size: 24px;
+  border-bottom-width: 3px;
+}
+
+h2 {
+  font-size: 20px;
+  border-bottom-width: 2px;
+}
+
+summary {
+  padding: 5px 10px;
+  font-weight: bold;
+  font-size: 16px;
+  color: #fff;
+  background: #000;
+}
+
+details {
+  padding: 10px;
+  border: 1px solid #000;
+}
+
+input, button {
+  width: 100%;
+}
+
+input {
+  margin: 0 0 10px 0;
+  padding: 5px;
+  height: 50px;
+  font-size: 20px;
+  border: 1px solid #000;
+}
+
+button {
+  height: 40px;
+  font-family: serif;
+  font-size: 16px;
+  border: none;
+  color: #fff;
+  background: #000;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  font-weight: bold;
+}
+
+.message-wrapper {
+  margin: 0 0 15px 0;
+}
