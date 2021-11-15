@@ -82,7 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // let altitudeAccuracy = pos.coords.altitudeAccuracy;
 
       latitude = `緯度: ${fixDecimal(latitude, 10) || text.geo.na}°`;
+      latitude += if(latitude) ? 'N' : 'S';
       longitude = `経度: ${fixDecimal(longitude, 10) || text.geo.na}°`;
+      longitude += if(longitude) ? 'E' : 'W';
       altitude = `高度: ${fixDecimal(altitude, 10) ? fixDecimal(altitude, 10) + 'm' : text.geo.na}`;
       heading = heading ? `(${fixDecimal(heading, 1)}°)` : '';
       direction = `方位: ${direction || text.geo.na}`;
