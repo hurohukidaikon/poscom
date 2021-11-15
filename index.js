@@ -123,6 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (degOffset < 0) {
         degOffset = 360 - degOffset;
+      } else if (degOffset >= 360) {
+        degOffset = degOffset - 360;
       }
 
       return degOffset;
