@@ -82,20 +82,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // let altitudeAccuracy = pos.coords.altitudeAccuracy;
 
       latitude = `緯度: ${fixDecimal(latitude, 10) || text.geo.na}°`;
-      if (latitude > 0) {
-        latitude += 'N';
-      } else if (latitude < 0) {
-        latitude += 'S';
-      }
-
+      latitude += latitude >= 0 ? 'N' : 'S';
       longitude = `経度: ${fixDecimal(longitude, 10) || text.geo.na}°`;
-      if (longitude > 0) {
-        longitude += 'E';
-      } else if(longitude < 0) {
-        longitude += 'W';
-      }
-
-      longitude += longitude > 0 ? 'E' : 'W';
+      longitude += longitude >= 0 ? 'E' : 'W';
       altitude = `高度: ${fixDecimal(altitude, 10) ? fixDecimal(altitude, 10) + 'm' : text.geo.na}`;
       heading = heading ? `(${fixDecimal(heading, 1)}°)` : '';
       direction = `方位: ${direction || text.geo.na}`;
