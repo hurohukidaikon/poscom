@@ -81,15 +81,15 @@ document.addEventListener('DOMContentLoaded', () => {
       // let accuracy = pos.coords.accuracy;
       // let altitudeAccuracy = pos.coords.altitudeAccuracy;
 
-      latitude = `緯度: ${fixDecimal(latitude, 10) || text.geo.na}°`;
+      latitude = `${fixDecimal(latitude, 10) || text.geo.na}°`;
       latitude += latitude >= 0 ? 'N' : 'S';
-      longitude = `経度: ${fixDecimal(longitude, 10) || text.geo.na}°`;
+      longitude = `${fixDecimal(longitude, 10) || text.geo.na}°`;
       longitude += longitude >= 0 ? 'E' : 'W';
-      altitude = `高度: ${fixDecimal(altitude, 10) ? fixDecimal(altitude, 10) + 'm' : text.geo.na}`;
+      altitude = `${fixDecimal(altitude, 10) ? fixDecimal(altitude, 10) + 'm' : text.geo.na}`;
       heading = heading ? `(${fixDecimal(heading, 1)}°)` : '';
-      direction = `方位: ${direction || text.geo.na}`;
+      direction = direction || text.geo.na;
 
-      send(`${getTime()}, ${latitude}, ${longitude}, ${altitude}, ${direction} ${heading}`);
+      send(`${getTime()}, 座標: ${latitude}, ${longitude}, 高度: ${altitude}, 方位: ${direction} ${heading}`);
     }
 
     function error(err) {
