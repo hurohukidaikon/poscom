@@ -121,6 +121,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const deg = rad * 180 / Math.PI;
       const degOffset = (deg + offset);
 
+      if (degOffset < 0) {
+        degOffset = 360 - degOffset;
+      }
+
       return degOffset;
     }
 
