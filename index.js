@@ -1,12 +1,7 @@
-// TODO:
-// herokuにアップロード（丸山さんや木村さんもテストできるようになります）
-// ステータス表示のバグ修正
-// 方角を角度と併せて、十六方位（南南西、とか）も表示する
-// iPhoneの画面を消しても通信を続ける（可能なら）
-// もうちょっと使いやすい工夫・見せ方
+
 
 document.addEventListener('DOMContentLoaded', () => {
-  // const interval = 4 * 60 * 1000; // minutes x seconds x 100 ms
+  // const interval = 2 * 60 * 1000; // minutes x seconds x 100 ms
   const interval = 10000;
   let beforeLatitude, beforeLongitude = null;
   let connArr = [];
@@ -35,12 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
       reset: `接続をリセットしました`
     },
     message: {
-      receive: (data) => {
-        return `相手: ${data}`
-      },
-      send: (data) => {
-        return `自分: ${data}`
-      }
+      receive: "相手",
+      send: "自分"
     },
     geo: {
       error: (err) => {
@@ -72,24 +63,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function geoLocation() {
     function success(pos) {
-      let latitude = pos.coords.latitude;
-      let longitude = pos.coords.longitude;
-      let altitude = pos.coords.altitude;
-      // let heading = pos.coords.heading;
-      let heading = getHeading(beforeLatitude, beforeLongitude, latitude, longitude);
-      let direction = getDirection(heading);
-      // let accuracy = pos.coords.accuracy;
-      // let altitudeAccuracy = pos.coords.altitudeAccuracy;
+      let data = {
+        type: "geo",
+        time: getTime(),
+        latitude: pos.coords.latitude,
+        latitudeDirection: latitude >= 0 ? 'N' : 'S',
+        longitude: pos.coords.longitude,
+        longitudeDirection: longitude >= 0 ? 'E' : 'W',
+        altitude: pos.coords.altitude,
+        heading: pos.coords.heading,
+        headingByCoords: getHeading(beforeLatitude, beforeLongitude, latitude, longitude),
+        direction: getDirection(heading),
+        accuracy: pos.coords.accuracy,
+        altitudeAccuracy: pos.coords.altitudeAccuracy
+      }
+      data.coords = `${data.latitude}°${data.latitudeDirection}, ${data.longitude}°${data.longitudeDirection}`;
 
-      latitude = `${fixDecimal(latitude, 10) || text.geo.na}°`;
-      latitude += latitude >= 0 ? 'N' : 'S';
-      longitude = `${fixDecimal(longitude, 10) || text.geo.na}°`;
-      longitude += longitude >= 0 ? 'E' : 'W';
-      altitude = `${fixDecimal(altitude, 10) ? fixDecimal(altitude, 10) + 'm' : text.geo.na}`;
-      heading = heading ? `(${fixDecimal(heading, 1)}°)` : '';
-      direction = direction || text.geo.na;
+      send(data);
 
-      send(`${getTime()}, 座標: ${latitude}, ${longitude}, 高度: ${altitude}, 方位: ${direction} ${heading}`);
+      // let latitude = `${fixDecimal(latitude, 10) || text.geo.na}°`;
+      // latitude += latitude >= 0 ? 'N' : 'S';
+      // let longitude = `${fixDecimal(longitude, 10) || text.geo.na}°`;
+      // longitude += longitude >= 0 ? 'E' : 'W';
+      // altitude = `${fixDecimal(altitude, 10) ? fixDecimal(altitude, 10) + 'm' : text.geo.na}`;
+      // heading = heading ? `(${fixDecimal(heading, 1)}°)` : '';
+      // direction = direction || text.geo.na;
+      //
+      // send(`${getTime()}, 座標: ${latitude}, ${longitude}, 高度: ${altitude}, 方位: ${direction} ${heading}`);
     }
 
     function error(err) {
@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function ready(i) {
       connArr[i].on('data', (data) => {
-        showMessage(text.message.receive(data));
+        showMessage(data);
       });
       connArr[i].on('close', () => {
         showStatus(text.status.close);
@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showPeer();
       });
       connArr[index].on('data', (data) => {
-        showMessage(text.message.receive(data));
+        showMessage(data);
       });
       connArr[index].on('close', () => {
         showStatus(text.status.closeConn(connArr[index].peer));
@@ -308,8 +308,21 @@ document.addEventListener('DOMContentLoaded', () => {
     statusEl.innerHTML = t;
   }
 
-  function showMessage(t) {
-    messageEl.innerHTML = t + "<br>" + message.innerHTML;
+  function showMessage(data) {
+    let oldMsg = message.innerHTML;
+    let msg = '';
+    // let from;
+    //
+    // if (data.fromId === myId) {
+    //   from = text.message.me;
+    // } else {
+    //   from = data.fromId;
+    // }
+
+    if (typeof data === 'object' && data.type === 'geo') {
+      msg = `${data.from}: ${data.time}, ${data.coords}, ${data.altitude}, ${data.direction}(${data.headingByCoords})`;
+    }
+    messageEl.innerHTML = `${data}<br>${oldMsg}`;
   }
 
   function send(msg) {
@@ -317,7 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
       for (var i = 0; i < connArr.length; i++) {
         connArr[i].send(msg);
       }
-      showMessage(text.message.send(msg));
+      showMessage(msg);
     } else {
       showStatus(text.status.noConnect);
     }
