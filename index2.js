@@ -72,7 +72,7 @@ const poscom = () => {
 
   // GPS取得成功
   function getPosSuccess(pos) {
-    let data = {
+    return {
       createdAt: getTime(),
       latitude: pos.coords.latitude,
       longitude: pos.coords.longitude,
@@ -81,11 +81,6 @@ const poscom = () => {
       accuracy: pos.coords.accuracy,
       altitudeAccuracy: pos.coords.altitudeAccuracy
     }
-    data['latitudeDirection'] = data.latitude >= 0 ? 'N' : 'S';
-    data['longitudeDirection'] = data.longitude >= 0 ? 'E' : 'W';
-    data['coordsStr'] = `${data.latitude}°${data.latitudeDirection}, ${data.longitude}°${data.longitudeDirection}`;
-
-    return data;
   }
 
   // GPS取得失敗
@@ -309,7 +304,7 @@ const poscom = () => {
     }
 
     beforeLatitude = x1;
-    beforeLongitude = x2;
+    beforeLongitude = y1;
 
     return degOffset;
   }
@@ -455,12 +450,13 @@ const poscom = () => {
 
     if (data.type === 'geo') {
       const createdAt = data.body.createdAt;
-      const coordsStr = data.body.coordsStr;
-      let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude)
-      let direction = getDirection(data.body.headingByCoords);
-
+      let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
       headingByCoords = headingByCoords ? `${headingByCoords}°` : 'N/A';
-      direction = direction || ''
+      let direction = getDirection(data.body.headingByCoords);
+      direction = direction || '';
+      const latitudeDirection = data.body.latitude >= 0 ? 'N' : 'S';
+      const longitudeDirection = data.body.longitude >= 0 ? 'E' : 'W';
+      const coordsStr = `${data.body.latitude}°${latitudeDirection}, ${data.body.longitude}°${longitudeDirection}`;
 
       str = `${createdAt}, 座標: ${coordsStr}, 方位: ${headingByCoords} ${direction}`;
     } else {
