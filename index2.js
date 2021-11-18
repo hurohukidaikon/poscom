@@ -1,6 +1,6 @@
 const poscom = () => {
   // パラメータ
-  const getPosInterval = 1000; // ms
+  const getPosInterval = 20000; // ms
   // const getPosInterval = 2 * 60 * 1000; // minutes x seconds x 100 ms
   const reconnectInterval = 1000; // ms
   const maximumAge = 100;
