@@ -9,23 +9,30 @@
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
-    <div class="message-wrapper">
-      <h2>Messages:</h2>
-      <div id="message"></div>
-    </div>
-    <details open>
+    <details>
       <summary>コントロールパネル</summary>
       <h1>POS/COM</h1>
-      <h2>My ID: </h2>
+      <h2>My ID:</h2>
       <input type="text" id="id" value="" placeholder="しばらくすると、あなたのIDが表示されます">
-      <button id="copy">コピー</button>
-      <h2>Peer ID: </h2>
+      <button id="copyBtn">コピー</button>
+      <h2>Peer ID:</h2>
       <input type="text" id="idInput" placeholder="相手の接続IDをここにコピペする">
-      <button id="join">接続</button>
+      <button id="joinBtn">接続</button>
       <h2>Peer Connection(s):</h2>
       <div id="connections"></div>
       <h2>Status:</h2>
       <div id="status"></div>
+      <h2>Mode:</h2>
+      <div class="mode-wrapper">
+        <input type="radio" name="mode" id="modeReceiver" checked>
+        <label for="modeReceiver">受信者(Receiver)モード</label>
+        <input type="radio" name="mode" id="modeSender">
+        <label for="modeSender">送信者(Sender)モード</label>
+      </div>
     </details>
+    <div class="message-wrapper">
+      <h2>Messages:</h2>
+      <div id="message"></div>
+    </div>
   </body>
 </html>

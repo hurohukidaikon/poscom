@@ -40,16 +40,20 @@ summary {
   background: var(--sub-color);
 }
 
+summary:focus {
+  outline: none;
+}
+
 details {
   padding: 10px;
   border: 1px solid var(--sub-color);
 }
 
-input, button {
+input[type='text'], button {
   width: 100%;
 }
 
-input {
+input[type='text'] {
   margin: 0 0 10px 0;
   padding: 5px;
   height: 50px;
@@ -59,7 +63,7 @@ input {
   border: 1px solid var(--sub-color);
 }
 
-input::placeholder {
+input[type='text']::placeholder {
   color: var(--sub-color);
   opacity: .25;
 }
@@ -88,3 +92,15 @@ button:active {
 .message-wrapper {
   margin: 0 0 15px 0;
 }
+
+.mode-wrapper {
+
+}
+
+/* input[type='radio'] {
+
+} */
+
+/* input[type='text']:checked {
+
+} */

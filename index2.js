@@ -1,9 +1,8 @@
 const poscom = () => {
   // パラメータ
-  // const mode = 0; // -1 = 受信のみ, 1 = 送信のみ, 0 = 両方
-  const getPosInterval = 60000; // ms
+  const getPosInterval = 1000; // ms
   // const getPosInterval = 2 * 60 * 1000; // minutes x seconds x 100 ms
-  const reconnectInterval = 10000; // ms
+  const reconnectInterval = 1000; // ms
   const maximumAge = 100;
   const timeout = 1000;
   const enableHighAccuracy = true;
@@ -13,17 +12,20 @@ const poscom = () => {
   let connections = {};
   let lastPeerId = null;
   let beforeLatitude, beforeLongitude = null;
+  let mode = 'none';
+  let getPosIntervalId;
 
   // HTMLエレメント
   const elements = {
     id: document.getElementById('id'),
-    copyBtn: document.getElementById('copy'),
+    copyBtn: document.getElementById('copyBtn'),
     connections: document.getElementById('connections'),
     status: document.getElementById('status'),
     message: document.getElementById('message'),
     idInput: document.getElementById('idInput'),
-    joinBtn: document.getElementById('join'),
-    sendBtn: document.getElementById('send')
+    joinBtn: document.getElementById('joinBtn'),
+    modeReceiver: document.getElementById('modeReceiver'),
+    modeSender: document.getElementById('modeSender')
   }
 
   // テキスト
@@ -82,13 +84,6 @@ const poscom = () => {
     data['latitudeDirection'] = data.latitude >= 0 ? 'N' : 'S';
     data['longitudeDirection'] = data.longitude >= 0 ? 'E' : 'W';
     data['coordsStr'] = `${data.latitude}°${data.latitudeDirection}, ${data.longitude}°${data.longitudeDirection}`;
-    data['headingByCoords'] = getHeading(beforeLatitude, beforeLongitude, data.latitude, data.longitude);
-    data['direction'] = getDirection(data.headingByCoords);
-
-    if (data.latitude && data.longitude) {
-      beforeLatitude = data.latitude;
-      beforeLongitude = data.longitude;
-    }
 
     return data;
   }
@@ -98,21 +93,42 @@ const poscom = () => {
     return err;
   }
 
+  var getPosSwitcher = () => {
+    if (mode === 'sender' || mode === 'both') {
+      show(elements.status, `${getTime()} 位置情報取得を開始`);
+      getPosition();
+      getPosIntervalId = setInterval(getPosition, getPosInterval);
+    } else {
+      show(elements.status, `${getTime()} 位置情報取得を停止`);
+      clearInterval(getPosIntervalId);
+    }
+  }
+
   // ==========
   // communication
   // ==========
 
   function communication() {
+    // ページを閉じる(更新する)時に
+    window.addEventListener('beforeunload', saveConnections);
+
     elements.copyBtn.addEventListener('click', copyTxt);
     elements.joinBtn.addEventListener('click', () => {
       join(elements.idInput.value);
+      elements.idInput.value = '';
+    });
+    elements.modeReceiver.addEventListener('change', () => {
+      modeChecker(getPosSwitcher);
+    });
+    elements.modeSender.addEventListener('change', () => {
+      modeChecker(getPosSwitcher);
     });
 
     init();
-    watch();
   }
 
   function init() {
+    modeChecker();
     peer = new Peer(null);
     let reconnection = debounce(reconnect, reconnectInterval);
 
@@ -124,6 +140,9 @@ const poscom = () => {
       }
       elements.id.value = peer.id;
       show(elements.status, `${getTime()} IDを取得し、通信回線を開きました`);
+
+      // 接続履歴が残っていたら再接続する
+      resumeConnections();
     });
 
     peer.on('connection', (c) => {
@@ -136,10 +155,10 @@ const poscom = () => {
 
       connections[id] = c;
       ready(id);
-      show(elements.status, `${getTime()} ${id} に接続しました`);
     });
 
-    peer.on('disconnected', () => { // 通信回線が切断された時などに発火
+    // 通信回線が切断された時などに発火
+    peer.on('disconnected', () => {
       show(elements.status, `${getTime()} 通信が切断されました`);
 
       peer.id = lastPeerId;
@@ -157,25 +176,15 @@ const poscom = () => {
     });
   }
 
-  function watch(interval = 1000) {
-    let getPosIntervalId;
-
-    setInterval(() => {
-      // console.log('watching');
-      if (objLength(connections) === 0 && getPosIntervalId) {
-        clearInterval(getPosIntervalId);
-      }
-
-      if (objLength(connections) === 1 && !getPosIntervalId) {
-        getPosition();
-        getPosIntervalId = setInterval(getPosition, getPosInterval);
-      }
-    }, interval);
-  }
-
   function join(id) {
     if (typeof id !== 'string') {
       throw new Error('Argument "id" is must a string.');
+    }
+
+    //
+    if (id === getCookieValueByKey('oldId')) {
+      delete connections[id];
+      return;
     }
 
     if (connections[id] && connections[id].open) {
@@ -184,10 +193,14 @@ const poscom = () => {
     }
 
     show(elements.status, `${getTime()} ${id} に接続を試みます`);
-    connections[id] = peer.connect(id, { reliable: true });
 
+    connections[id] = peer.connect(id, { reliable: true });
+    ready(id);
+  }
+
+  function ready(id) {
     connections[id].on('open', () => {
-      show(elements.status, `${getTime()} ${id} に接続しました(join)`);
+      show(elements.status, `${getTime()} ${id} に接続しました`);
     });
 
     connections[id].on('data', (data) => {
@@ -195,8 +208,9 @@ const poscom = () => {
     });
 
     connections[id].on('close', () => {
-      connections[id] = null;
+      // connections[id] = null;
       show(elements.status, `${getTime()} ${id} を切断しました`);
+      delete connections[id];
     });
 
     connections[id].on('error', (err) => {
@@ -205,33 +219,13 @@ const poscom = () => {
     });
   }
 
-  function ready(id) {
-    connections[id].on('data', (data) => {
-      receive(data);
-    });
-
-    connections[id].on('close', () => {
-      connections[id] = null;
-      show(elements.status, `${getTime()} ${id} を切断しました`);
-    });
-
-    connections[id].on('error', (err) => {
-      show(elements.status, `${getTime()} エラー(${err.message})`);
-    });
-  }
-
   function reconnect() {
-    console.log(`${getTime()} 再接続を試みます`);
+    show(elements.status, `${getTime()} 再接続を試みます`);
     peer.reconnect();
 
     peer.on('open', () => {
       // 接続履歴が残っていたら再接続する
-      console.log(connections);
-      for (var id in connections) {
-        if (connections[id] === null) {
-          join(id);
-        }
-      }
+      resumeConnections();
     });
   }
 
@@ -262,31 +256,22 @@ const poscom = () => {
     console.log(data);
     show(elements.status, `${getTime()} ${sendTo} に送信しました`);
 
-    let message = 'YOU: ';
-
-    if (data.type === 'geo') {
-      message += parthGeo(data.body);
-    } else {
-      message += JSON.stringify(data);
-    }
-
-    show(elements.message, message, 'append');
+    let message = `YOU: ${dataStringify(data)}`;
+    show(elements.message, message, 'prepend');
   }
 
   function receive(data, receivedFrom) {
+    if (mode === 'sender' || mode === 'none') {
+      show(elements.status, `${getTime()} ${mode} モードなので受信できません`);
+      return;
+    }
+
     console.log('data received');
     console.log(data);
     show(elements.status, `${getTime()} ${receivedFrom} から受信しました`);
 
-    let message = 'PEER: ';
-
-    if (data.type === "geo") {
-      message += parthGeo(data.body);
-    } else {
-      message += JSON.stringify(data);
-    }
-
-    show(elements.message, message, 'append');
+    let message = `PEER: ${dataStringify(data)}`;
+    show(elements.message, message, 'prepend');
   }
 
   // ==========
@@ -310,7 +295,7 @@ const poscom = () => {
     const rad = Math.atan2(y2 - y1, x2 - x1);
 
     // 角度が計算できなかったらnull
-    if (!rad) {
+    if (isNaN(rad)) {
       return null;
     }
 
@@ -323,6 +308,9 @@ const poscom = () => {
     } else if (degOffset >= 360) {
       degOffset = degOffset - 360;
     }
+
+    beforeLatitude = x1;
+    beforeLongitude = x2;
 
     return degOffset;
   }
@@ -403,7 +391,6 @@ const poscom = () => {
     }
     console.log(txt);
 
-
     elements.connections.innerHTML = '接続中の相手がいません';
     const keys = Object.keys(connections)
     for (var i = 0; i < keys.length; i++) {
@@ -464,13 +451,63 @@ const poscom = () => {
     }
   }
 
-  function parthGeo(data) {
-    const createdAt = data.createdAt;
-    const coordsStr = data.coordsStr;
-    const headingByCoords = data.headingByCoords;
-    const str = `${createdAt}, 座標: ${coordsStr}, 方位: ${headingByCoords}`
+  function dataStringify(data) {
+    let str = '';
+
+    if (data.type === 'geo') {
+      const createdAt = data.body.createdAt;
+      const coordsStr = data.body.coordsStr;
+      let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.latitude, data.longitude)
+      let direction = getDirection(data.headingByCoords);
+
+      headingByCoords = headingByCoords ? `${headingByCoords}°` : 'N/A';
+      direction = direction || ''
+
+      str = `${createdAt}, 座標: ${coordsStr}, 方位: ${headingByCoords} ${direction}`;
+    } else {
+      str = JSON.stringify(data);
+    }
 
     return str;
+  }
+
+  function modeChecker(callback) {
+    if (elements.modeReceiver.checked && elements.modeSender.checked) {
+      mode = 'both';
+    } else if (elements.modeReceiver.checked) {
+      mode = 'receiver';
+    } else if (elements.modeSender.checked) {
+      mode = 'sender';
+    } else {
+      mode = 'none';
+    }
+
+    show(elements.status, `${getTime()} ${mode} モードになりました`);
+
+    if (!callback) {
+      return;
+    }
+
+    setTimeout(() => { callback() });
+  }
+
+  function saveConnections() {
+    const maxAge = 60 * 60 // sec
+    document.cookie = `connections=${Object.keys(connections).toString()}; oldId=${peer.id}; max-age=${maxAge}`;
+  }
+
+  function resumeConnections() {
+    let arr = getCookieValueByKey('connections').split(',');
+    arr = (arr.length === 1 && arr[0] === '') ? [] : arr;
+    arr = arr.concat(Object.keys(connections));
+
+    for (var i = 0; i < arr.length; i++) {
+      join(arr[i]);
+    }
+  }
+
+  function getCookieValueByKey(key) {
+    return ((document.cookie + ';').match(key + '=([^\S;]*)')||[])[1];
   }
 
   // ==========
