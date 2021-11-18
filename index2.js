@@ -1,6 +1,6 @@
 const poscom = () => {
   // パラメータ
-  const getPosInterval = 20000; // ms
+  const getPosInterval = 10000; // ms
   // const getPosInterval = 2 * 60 * 1000; // minutes x seconds x 100 ms
   const reconnectInterval = 1000; // ms
   const maximumAge = 100;
@@ -139,7 +139,7 @@ const poscom = () => {
         lastPeerId = peer.id;
       }
       elements.id.value = peer.id;
-      show(elements.status, `${getTime()} IDを取得し、通信回線を開きました`);
+      show(elements.status, `${getTime()} 通信ができる状態になりました`);
 
       // 接続履歴が残っていたら再接続する
       resumeConnections();
@@ -181,7 +181,7 @@ const poscom = () => {
       throw new Error('Argument "id" is must a string.');
     }
 
-    //
+    // 破棄されたIDに接続しないようにする
     if (id === getCookieValueByKey('oldId')) {
       delete connections[id];
       return;
@@ -208,7 +208,6 @@ const poscom = () => {
     });
 
     connections[id].on('close', () => {
-      // connections[id] = null;
       show(elements.status, `${getTime()} ${id} を切断しました`);
       delete connections[id];
     });
@@ -457,8 +456,8 @@ const poscom = () => {
     if (data.type === 'geo') {
       const createdAt = data.body.createdAt;
       const coordsStr = data.body.coordsStr;
-      let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.latitude, data.longitude)
-      let direction = getDirection(data.headingByCoords);
+      let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude)
+      let direction = getDirection(data.body.headingByCoords);
 
       headingByCoords = headingByCoords ? `${headingByCoords}°` : 'N/A';
       direction = direction || ''
