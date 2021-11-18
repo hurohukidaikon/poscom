@@ -1,7 +1,7 @@
 const poscom = () => {
   // パラメータ
   const getPosInterval = 10000; // ms
-  // const getPosInterval = 2 * 60 * 1000; // minutes x seconds x 100 ms
+  // const getPosInterval = 4 * 60 * 1000; // minutes x seconds x 100 ms
   const reconnectInterval = 1000; // ms
   const maximumAge = 100;
   const timeout = 1000;
@@ -11,7 +11,7 @@ const poscom = () => {
   let peer = null;
   let connections = {};
   let lastPeerId = null;
-  let beforeLatitude, beforeLongitude = null;
+  let beforeLatitude, beforeLongitude;
   let mode = 'none';
   let getPosIntervalId;
 
@@ -24,8 +24,9 @@ const poscom = () => {
     message: document.getElementById('message'),
     idInput: document.getElementById('idInput'),
     joinBtn: document.getElementById('joinBtn'),
-    modeReceiver: document.getElementById('modeReceiver'),
-    modeSender: document.getElementById('modeSender')
+    controlPanel: document.getElementById('controlPanel'),
+    startBtn: document.getElementById('startBtn'),
+    startBtnLabel: document.getElementById('startBtnLabel')
   }
 
   // テキスト
@@ -107,15 +108,14 @@ const poscom = () => {
     // ページを閉じる(更新する)時に
     window.addEventListener('beforeunload', saveConnections);
 
-    elements.copyBtn.addEventListener('click', copyTxt);
+    elements.copyBtn.addEventListener('click', () => {
+      copyTxt(peer.id);
+    });
     elements.joinBtn.addEventListener('click', () => {
       join(elements.idInput.value);
       elements.idInput.value = '';
     });
-    elements.modeReceiver.addEventListener('change', () => {
-      modeChecker(getPosSwitcher);
-    });
-    elements.modeSender.addEventListener('change', () => {
+    elements.startBtn.addEventListener('change', () => {
       modeChecker(getPosSwitcher);
     });
 
@@ -134,6 +134,9 @@ const poscom = () => {
         lastPeerId = peer.id;
       }
       elements.id.value = peer.id;
+      elements.copyBtn.disabled = false;
+      elements.joinBtn.disabled = false;
+      elements.startBtn.disabled = false;
       show(elements.status, `${getTime()} 通信ができる状態になりました`);
 
       // 接続履歴が残っていたら再接続する
@@ -150,6 +153,10 @@ const poscom = () => {
 
       connections[id] = c;
       ready(id);
+
+      toggleCP('close');
+      elements.startBtn.display = 'none';
+      elements.startBtnLabel.display = 'none';
     });
 
     // 通信回線が切断された時などに発火
@@ -159,15 +166,21 @@ const poscom = () => {
       peer.id = lastPeerId;
       peer._lastServerId = lastPeerId;
       reconnection();
+
+      toggleCP('open');
     });
 
     peer.on('close', () => {
       connections = {};
       show(elements.status, `${getTime()} 通信回線が閉じました`);
+
+      toggleCP('open');
     });
 
     peer.on('error', (err) => {
       show(elements.status, `${getTime()} エラー(${err.message})`);
+
+      toggleCP('open');
     });
   }
 
@@ -196,6 +209,8 @@ const poscom = () => {
   function ready(id) {
     connections[id].on('open', () => {
       show(elements.status, `${getTime()} ${id} に接続しました`);
+
+      toggleCP('close');
     });
 
     connections[id].on('data', (data) => {
@@ -205,11 +220,15 @@ const poscom = () => {
     connections[id].on('close', () => {
       show(elements.status, `${getTime()} ${id} を切断しました`);
       delete connections[id];
+
+      toggleCP('open');
     });
 
     connections[id].on('error', (err) => {
       show(elements.status, `${getTime()} ${id} に接続できませんでした(${err.message})`);
       delete connections[id];
+
+      toggleCP('open');
     });
   }
 
@@ -286,25 +305,26 @@ const poscom = () => {
 
   // 2つの座標を元に方角を算出する
   function getHeading(x1, y1, x2, y2) {
+    console.log(`${x1}, ${y1}, ${x2}, ${y2}`);
     const rad = Math.atan2(y2 - y1, x2 - x1);
 
+    beforeLatitude = x2;
+    beforeLongitude = y2;
+
     // 角度が計算できなかったらnull
-    if (isNaN(rad)) {
+    if (!rad) {
       return null;
     }
 
     const offset = 90;
     const deg = rad * 180 / Math.PI;
-    const degOffset = (deg + offset);
+    let degOffset = (deg + offset);
 
     if (degOffset < 0) {
       degOffset = 360 - degOffset;
     } else if (degOffset >= 360) {
       degOffset = degOffset - 360;
     }
-
-    beforeLatitude = x1;
-    beforeLongitude = y1;
 
     return degOffset;
   }
@@ -397,10 +417,25 @@ const poscom = () => {
   }
 
   // テキストをコピーする
-  function copyTxt() {
-    elements.id.select();
-    document.execCommand('copy');
+  function copyTxt(txt) {
+    // 一時要素を追加
+    const pre = document.createElement('pre');
+
+    // テキストを選択可能してテキストをセット
+    pre.style.webkitUserSelect = 'auto';
+    pre.style.userSelect = 'auto';
+    pre.textContent = txt;
+
+    // 一時要素を追加してコピー
+    document.body.appendChild(pre);
+    document.getSelection().selectAllChildren(pre);
+    const result = document.execCommand('copy');
     show(elements.status, `${getTime()} IDをクリップボードにコピーしました`);
+
+    // 一時要素を削除
+    document.body.removeChild(pre);
+
+    return result;
   }
 
   // オブジェクトの要素数
@@ -451,12 +486,13 @@ const poscom = () => {
     if (data.type === 'geo') {
       const createdAt = data.body.createdAt;
       let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
-      headingByCoords = headingByCoords ? `${headingByCoords}°` : 'N/A';
-      let direction = getDirection(data.body.headingByCoords);
-      direction = direction || '';
+      let direction = getDirection(headingByCoords);
       const latitudeDirection = data.body.latitude >= 0 ? 'N' : 'S';
       const longitudeDirection = data.body.longitude >= 0 ? 'E' : 'W';
-      const coordsStr = `${data.body.latitude}°${latitudeDirection}, ${data.body.longitude}°${longitudeDirection}`;
+
+      headingByCoords = headingByCoords ? `${decimalize(headingByCoords, 1)}°` : 'N/A';
+      direction = direction || '';
+      const coordsStr = `${decimalize(data.body.latitude, 10)}°${latitudeDirection}, ${decimalize(data.body.longitude, 10)}°${longitudeDirection}`;
 
       str = `${createdAt}, 座標: ${coordsStr}, 方位: ${headingByCoords} ${direction}`;
     } else {
@@ -467,14 +503,12 @@ const poscom = () => {
   }
 
   function modeChecker(callback) {
-    if (elements.modeReceiver.checked && elements.modeSender.checked) {
-      mode = 'both';
-    } else if (elements.modeReceiver.checked) {
-      mode = 'receiver';
-    } else if (elements.modeSender.checked) {
+    if (elements.startBtn.checked) {
       mode = 'sender';
+      elements.startBtnLabel.innerHTML = '送信ストップ';
     } else {
-      mode = 'none';
+      mode = 'receiver';
+      elements.startBtnLabel.innerHTML = '送信スタート';
     }
 
     show(elements.status, `${getTime()} ${mode} モードになりました`);
@@ -487,7 +521,7 @@ const poscom = () => {
   }
 
   function saveConnections() {
-    const maxAge = 60 * 60 // sec
+    const maxAge = 60 // sec
     document.cookie = `connections=${Object.keys(connections).toString()}; oldId=${peer.id}; max-age=${maxAge}`;
   }
 
@@ -503,6 +537,21 @@ const poscom = () => {
 
   function getCookieValueByKey(key) {
     return ((document.cookie + ';').match(key + '=([^\S;]*)')||[])[1];
+  }
+
+  // コントロールパネルを開く・閉じる・トグルする
+  function toggleCP(command) {
+    if (command === 'open') {
+      elements.controlPanel.open = true;
+    } else if (command === 'close') {
+      elements.controlPanel.open = false;
+    } else {
+      if (elements.controlPanel.open) {
+        elements.controlPanel.open = false;
+      } else {
+        elements.controlPanel.open = true;
+      }
+    }
   }
 
   // ==========

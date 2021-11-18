@@ -40,6 +40,7 @@ summary {
   background: var(--sub-color);
 }
 
+input:focus,
 summary:focus {
   outline: none;
 }
@@ -49,18 +50,20 @@ details {
   border: 1px solid var(--sub-color);
 }
 
-input[type='text'], button {
-  width: 100%;
-}
-
 input[type='text'] {
-  margin: 0 0 10px 0;
-  padding: 5px;
+  display: block;
+  width: 100%;
   height: 50px;
+  padding: 5px;
   font-size: 20px;
   background: var(--main-color);
   color: var(--sub-color);
   border: 1px solid var(--sub-color);
+}
+
+input[type='text']:disabled {
+  -webkit-text-fill-color: var(--sub-color);
+  color: var(--sub-color);
 }
 
 input[type='text']::placeholder {
@@ -68,8 +71,12 @@ input[type='text']::placeholder {
   opacity: .25;
 }
 
-button {
-  height: 40px;
+button,
+label[for="startBtn"] {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 10px;
   font-family: serif;
   font-size: 16px;
   border: none;
@@ -89,12 +96,28 @@ button:active {
   opacity: .9;
 }
 
+button:disabled,
+#startBtn:disabled + label[for="startBtn"] {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
+.mode-wrapper,
 .message-wrapper {
   margin: 0 0 15px 0;
 }
 
-.mode-wrapper {
+#startBtn {
+  display: none;
+}
 
+label[for="startBtn"] {
+  display: block;
+  text-align: center;
+}
+
+#startBtn:checked + label[for="startBtn"] {
+  /* color: #f00; */
 }
 
 /* input[type='radio'] {
