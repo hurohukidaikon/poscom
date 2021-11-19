@@ -8,6 +8,7 @@
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
+  border-radius: 0;
 }
 
 html, body {
@@ -102,9 +103,12 @@ button:disabled,
   cursor: not-allowed;
 }
 
-.mode-wrapper,
 .message-wrapper {
   margin: 0 0 15px 0;
+}
+
+.mode-wrapper {
+  margin: 15px 0 0 0;
 }
 
 #startBtn {

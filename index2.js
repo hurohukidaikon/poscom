@@ -149,7 +149,11 @@ const poscom = () => {
       connections[id] = c;
       ready(id);
 
-      toggleCP('close');
+      // toggleCP('close');
+
+      // GPSの送信をスタートさせる
+      // elements.startBtn.checked = true;
+      // modeChecker(getPosSwitcher);
     });
 
     // 通信回線が切断された時などに発火
@@ -224,11 +228,12 @@ const poscom = () => {
     connections[id].on('open', () => {
       show(elements.status, `${getTime()} ${id} に接続しました`);
 
-      toggleCP('close');
+      // toggleCP('close');
     });
 
     connections[id].on('data', (data) => {
       receive(data, id);
+      // toggleCP('close');
     });
 
     connections[id].on('close', () => {
@@ -249,11 +254,6 @@ const poscom = () => {
   function reconnect() {
     show(elements.status, `${getTime()} ${peer._lastServerId} に再接続を試みます`); //peer._lastServerId ?
     peer.reconnect();
-
-    // peer.on('open', () => {
-    //   // 接続履歴を元に通信相手に再接続する
-    //   resumeConnections();
-    // });
   }
 
   function send(body, type = 'message', sendTo = Object.keys(connections)) {
@@ -515,17 +515,17 @@ const poscom = () => {
 
   // コントロールパネルを開く・閉じる・トグルする
   function toggleCP(command) {
-    // if (command === 'open') {
-    //   elements.controlPanel.open = true;
-    // } else if (command === 'close') {
-    //   elements.controlPanel.open = false;
-    // } else {
-    //   if (elements.controlPanel.open) {
-    //     elements.controlPanel.open = false;
-    //   } else {
-    //     elements.controlPanel.open = true;
-    //   }
-    // }
+    if (command === 'open') {
+      elements.controlPanel.open = true;
+    } else if (command === 'close') {
+      elements.controlPanel.open = false;
+    } else {
+      if (elements.controlPanel.open) {
+        elements.controlPanel.open = false;
+      } else {
+        elements.controlPanel.open = true;
+      }
+    }
   }
 
   // ==========
