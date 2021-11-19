@@ -330,54 +330,17 @@ const poscom = () => {
 
   // 方角を元に十六方位を返す
   function getDirection(deg) {
-    if (!deg) {
+    if (deg === null) {
       return null;
     }
 
     const directions = texts.geo.direction;
-    console.log(texts.geo.direction);
-    const offset = 360 / Object.keys(directions).length / 2;
-    console.log(offset);
-    const directionNo = Math.ceil((deg + offset) / 360);
-    console.log(directionNo);
-    const direction = objByIndex(directions, directionNo);
+    const sectionDeg = 360 / Object.keys(directions).length
+    const offsetDeg = sectionDeg / 2;
+    const directionNo = Math.ceil((deg + offsetDeg) / sectionDeg);
+    const direction = objByIndex(directions, directionNo - 1);
 
     return direction;
-
-    // if (0 <= degOffset && degOffset < sectionDeg * 1) {
-    //   return texts.geo.direction.n;
-    // } else if (sectionDeg * 1 <= degOffset && degOffset < sectionDeg * 2) {
-    //   return texts.geo.direction.nne;
-    // } else if (sectionDeg * 2 <= degOffset && degOffset < sectionDeg * 3) {
-    //   return texts.geo.direction.ne;
-    // } else if (sectionDeg * 3 <= degOffset && degOffset < sectionDeg * 4) {
-    //   return texts.geo.direction.ene;
-    // } else if (sectionDeg * 4 <= degOffset && degOffset < sectionDeg * 5) {
-    //   return texts.geo.direction.e;
-    // } else if (sectionDeg * 5 <= degOffset && degOffset < sectionDeg * 6) {
-    //   return texts.geo.direction.ese;
-    // } else if (sectionDeg * 6 <= degOffset && degOffset < sectionDeg * 7) {
-    //   return texts.geo.direction.se;
-    // } else if (sectionDeg * 7 <= degOffset && degOffset < sectionDeg * 8) {
-    //   return texts.geo.direction.sse;
-    // } else if (sectionDeg * 8 <= degOffset && degOffset < sectionDeg * 9) {
-    //   return texts.geo.direction.s;
-    // } else if (sectionDeg * 9 <= degOffset && degOffset < sectionDeg * 10) {
-    //   return texts.geo.direction.ssw;
-    // } else if (sectionDeg * 10 <= degOffset && degOffset < sectionDeg * 11) {
-    //   return texts.geo.direction.sw;
-    // } else if (sectionDeg * 11 <= degOffset && degOffset < sectionDeg * 12) {
-    //   return texts.geo.direction.wsw;
-    // } else if (sectionDeg * 12 <= degOffset && degOffset < sectionDeg * 13) {
-    //   return texts.geo.direction.w;
-    // } else if (sectionDeg * 13 <= degOffset && degOffset < sectionDeg * 14) {
-    //   return texts.geo.direction.wnw;
-    // } else if (sectionDeg * 14 <= degOffset && degOffset < sectionDeg * 15) {
-    //   return texts.geo.direction.nw;
-    // } else if (sectionDeg * 15 <= degOffset && degOffset < sectionDeg * 16) {
-    //   return texts.geo.direction.nnw;
-    // }
-    // return null;
   }
 
   // 有効数字の桁数を揃える(元の値, 桁数)
