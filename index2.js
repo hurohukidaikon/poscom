@@ -1,4 +1,5 @@
 const poscom = () => {
+  // document.cookie = 'connections='
   // パラメータ
   const getPosInterval = 10000; // ms
   // const getPosInterval = 4 * 60 * 1000; // minutes x seconds x 100 ms
@@ -10,7 +11,6 @@ const poscom = () => {
   // 内部変数
   let peer = null;
   let connections = {};
-  let lastPeerId = null;
   let beforeLatitude, beforeLongitude;
   let mode = 'none';
   let getPosIntervalId;
@@ -106,7 +106,7 @@ const poscom = () => {
 
   function communication() {
     // ページを閉じる(更新する)時に
-    window.addEventListener('beforeunload', saveConnections);
+    window.addEventListener('beforeunload', saveConnectionsInCookie);
 
     elements.copyBtn.addEventListener('click', () => {
       copyTxt(peer.id);
@@ -128,11 +128,6 @@ const poscom = () => {
     let reconnection = debounce(reconnect, reconnectInterval);
 
     peer.on('open', (id) => {
-      if (peer.id === null) {
-        peer.id = lastPeerId;
-      } else {
-        lastPeerId = peer.id;
-      }
       elements.id.value = peer.id;
       elements.copyBtn.disabled = false;
       elements.joinBtn.disabled = false;
@@ -155,16 +150,12 @@ const poscom = () => {
       ready(id);
 
       toggleCP('close');
-      elements.startBtn.display = 'none';
-      elements.startBtnLabel.display = 'none';
     });
 
     // 通信回線が切断された時などに発火
     peer.on('disconnected', () => {
       show(elements.status, `${getTime()} 通信が切断されました`);
 
-      peer.id = lastPeerId;
-      peer._lastServerId = lastPeerId;
       reconnection();
 
       toggleCP('open');
@@ -178,7 +169,8 @@ const poscom = () => {
     });
 
     peer.on('error', (err) => {
-      show(elements.status, `${getTime()} エラー(${err.message})`);
+      show(elements.status, `${getTime()} 通信エラーが発生しました(${err.message})`);
+      console.log(err);
 
       toggleCP('open');
     });
@@ -189,12 +181,34 @@ const poscom = () => {
       throw new Error('Argument "id" is must a string.');
     }
 
-    // 破棄されたIDに接続しないようにする
-    if (id === getCookieValueByKey('oldId')) {
+    // IDが空の時は破棄する
+    if (id === '') {
       delete connections[id];
+      show(elements.status, `${getTime()} IDが入力されていません`);
       return;
     }
 
+    // 自分のIDと同じIDに接続しようとした時は破棄する
+    if (id === peer.id) {
+      delete connections[id];
+      show(elements.status, `${getTime()} ${id} には接続が許可されていません`);
+      return;
+    }
+
+    // 破棄されたIDに接続しないようにする
+    if (id === getCookieValueByKey('oldId')) {
+      delete connections[id];
+      show(elements.status, `${getTime()} ${id} は破棄されたIDです`);
+      return;
+    }
+
+    // 無効な接続情報を削除する
+    if (connections[id] && !connections[id].open) {
+      delete connections[id];
+      show(elements.status, `${getTime()} ${id} は無効な接続のため破棄します`);
+    }
+
+    // 接続済みの場合は接続を試みない
     if (connections[id] && connections[id].open) {
       show(elements.status, `${getTime()} ${id} は接続済みです`);
       return;
@@ -218,28 +232,28 @@ const poscom = () => {
     });
 
     connections[id].on('close', () => {
-      show(elements.status, `${getTime()} ${id} を切断しました`);
       delete connections[id];
+      show(elements.status, `${getTime()} ${id} を切断しました`);
 
       toggleCP('open');
     });
 
     connections[id].on('error', (err) => {
-      show(elements.status, `${getTime()} ${id} に接続できませんでした(${err.message})`);
       delete connections[id];
+      show(elements.status, `${getTime()} ${id} に接続できなかったので破棄します(${err.message})`);
 
       toggleCP('open');
     });
   }
 
   function reconnect() {
-    show(elements.status, `${getTime()} 再接続を試みます`);
+    show(elements.status, `${getTime()} ${peer._lastServerId} に再接続を試みます`); //peer._lastServerId ?
     peer.reconnect();
 
-    peer.on('open', () => {
-      // 接続履歴が残っていたら再接続する
-      resumeConnections();
-    });
+    // peer.on('open', () => {
+    //   // 接続履歴を元に通信相手に再接続する
+    //   resumeConnections();
+    // });
   }
 
   function send(body, type = 'message', sendTo = Object.keys(connections)) {
@@ -265,12 +279,9 @@ const poscom = () => {
       }
     }
 
-    console.log('sent data');
-    console.log(data);
-    show(elements.status, `${getTime()} ${sendTo} に送信しました`);
-
-    let message = `YOU: ${dataStringify(data)}`;
+    let message = `SENT: ${dataStringify(data)}`;
     show(elements.message, message, 'prepend');
+    show(elements.status, `${getTime()} ${sendTo} に送信しました`);
   }
 
   function receive(data, receivedFrom) {
@@ -279,12 +290,9 @@ const poscom = () => {
       return;
     }
 
-    console.log('data received');
-    console.log(data);
-    show(elements.status, `${getTime()} ${receivedFrom} から受信しました`);
-
-    let message = `PEER: ${dataStringify(data)}`;
+    let message = `RECEIVED: ${dataStringify(data)}`;
     show(elements.message, message, 'prepend');
+    show(elements.status, `${getTime()} ${receivedFrom} から受信しました`);
   }
 
   // ==========
@@ -305,7 +313,6 @@ const poscom = () => {
 
   // 2つの座標を元に方角を算出する
   function getHeading(x1, y1, x2, y2) {
-    console.log(`${x1}, ${y1}, ${x2}, ${y2}`);
     const rad = Math.atan2(y2 - y1, x2 - x1);
 
     beforeLatitude = x2;
@@ -316,17 +323,9 @@ const poscom = () => {
       return null;
     }
 
-    const offset = 90;
-    const deg = rad * 180 / Math.PI;
-    let degOffset = (deg + offset);
+    const deg = rad * 180 / Math.PI - 90;
 
-    if (degOffset < 0) {
-      degOffset = 360 - degOffset;
-    } else if (degOffset >= 360) {
-      degOffset = degOffset - 360;
-    }
-
-    return degOffset;
+    return Math.abs(deg - 360 * Math.floor(deg / 360));
   }
 
   // 方角を元に十六方位を返す
@@ -335,45 +334,50 @@ const poscom = () => {
       return null;
     }
 
-    const sectionDeg = 360 / 16;
-    const offset = sectionDeg / 2;
-    // 0度が方位「北」の区間の中央を指すように区間の1/2オフセット
-    const degOffset = deg + offset;
+    const directions = texts.geo.direction;
+    console.log(texts.geo.direction);
+    const offset = 360 / Object.keys(directions).length / 2;
+    console.log(offset);
+    const directionNo = Math.ceil((deg + offset) / 360);
+    console.log(directionNo);
+    const direction = objByIndex(directions, directionNo);
 
-    if (0 <= degOffset && degOffset < sectionDeg * 1) {
-      return texts.geo.direction.n;
-    } else if (sectionDeg * 1 <= degOffset && degOffset < sectionDeg * 2) {
-      return texts.geo.direction.nne;
-    } else if (sectionDeg * 2 <= degOffset && degOffset < sectionDeg * 3) {
-      return texts.geo.direction.ne;
-    } else if (sectionDeg * 3 <= degOffset && degOffset < sectionDeg * 4) {
-      return texts.geo.direction.ene;
-    } else if (sectionDeg * 4 <= degOffset && degOffset < sectionDeg * 5) {
-      return texts.geo.direction.e;
-    } else if (sectionDeg * 5 <= degOffset && degOffset < sectionDeg * 6) {
-      return texts.geo.direction.ese;
-    } else if (sectionDeg * 6 <= degOffset && degOffset < sectionDeg * 7) {
-      return texts.geo.direction.se;
-    } else if (sectionDeg * 7 <= degOffset && degOffset < sectionDeg * 8) {
-      return texts.geo.direction.sse;
-    } else if (sectionDeg * 8 <= degOffset && degOffset < sectionDeg * 9) {
-      return texts.geo.direction.s;
-    } else if (sectionDeg * 9 <= degOffset && degOffset < sectionDeg * 10) {
-      return texts.geo.direction.ssw;
-    } else if (sectionDeg * 10 <= degOffset && degOffset < sectionDeg * 11) {
-      return texts.geo.direction.sw;
-    } else if (sectionDeg * 11 <= degOffset && degOffset < sectionDeg * 12) {
-      return texts.geo.direction.wsw;
-    } else if (sectionDeg * 12 <= degOffset && degOffset < sectionDeg * 13) {
-      return texts.geo.direction.w;
-    } else if (sectionDeg * 13 <= degOffset && degOffset < sectionDeg * 14) {
-      return texts.geo.direction.wnw;
-    } else if (sectionDeg * 14 <= degOffset && degOffset < sectionDeg * 15) {
-      return texts.geo.direction.nw;
-    } else if (sectionDeg * 15 <= degOffset && degOffset < sectionDeg * 16) {
-      return texts.geo.direction.nnw;
-    }
-    return null;
+    return direction;
+
+    // if (0 <= degOffset && degOffset < sectionDeg * 1) {
+    //   return texts.geo.direction.n;
+    // } else if (sectionDeg * 1 <= degOffset && degOffset < sectionDeg * 2) {
+    //   return texts.geo.direction.nne;
+    // } else if (sectionDeg * 2 <= degOffset && degOffset < sectionDeg * 3) {
+    //   return texts.geo.direction.ne;
+    // } else if (sectionDeg * 3 <= degOffset && degOffset < sectionDeg * 4) {
+    //   return texts.geo.direction.ene;
+    // } else if (sectionDeg * 4 <= degOffset && degOffset < sectionDeg * 5) {
+    //   return texts.geo.direction.e;
+    // } else if (sectionDeg * 5 <= degOffset && degOffset < sectionDeg * 6) {
+    //   return texts.geo.direction.ese;
+    // } else if (sectionDeg * 6 <= degOffset && degOffset < sectionDeg * 7) {
+    //   return texts.geo.direction.se;
+    // } else if (sectionDeg * 7 <= degOffset && degOffset < sectionDeg * 8) {
+    //   return texts.geo.direction.sse;
+    // } else if (sectionDeg * 8 <= degOffset && degOffset < sectionDeg * 9) {
+    //   return texts.geo.direction.s;
+    // } else if (sectionDeg * 9 <= degOffset && degOffset < sectionDeg * 10) {
+    //   return texts.geo.direction.ssw;
+    // } else if (sectionDeg * 10 <= degOffset && degOffset < sectionDeg * 11) {
+    //   return texts.geo.direction.sw;
+    // } else if (sectionDeg * 11 <= degOffset && degOffset < sectionDeg * 12) {
+    //   return texts.geo.direction.wsw;
+    // } else if (sectionDeg * 12 <= degOffset && degOffset < sectionDeg * 13) {
+    //   return texts.geo.direction.w;
+    // } else if (sectionDeg * 13 <= degOffset && degOffset < sectionDeg * 14) {
+    //   return texts.geo.direction.wnw;
+    // } else if (sectionDeg * 14 <= degOffset && degOffset < sectionDeg * 15) {
+    //   return texts.geo.direction.nw;
+    // } else if (sectionDeg * 15 <= degOffset && degOffset < sectionDeg * 16) {
+    //   return texts.geo.direction.nnw;
+    // }
+    // return null;
   }
 
   // 有効数字の桁数を揃える(元の値, 桁数)
@@ -406,7 +410,7 @@ const poscom = () => {
     console.log(txt);
 
     elements.connections.innerHTML = '接続中の相手がいません';
-    const keys = Object.keys(connections)
+    const keys = Object.keys(connections);
     for (var i = 0; i < keys.length; i++) {
       if (i === 0) {
         elements.connections.innerHTML = '';
@@ -485,16 +489,16 @@ const poscom = () => {
 
     if (data.type === 'geo') {
       const createdAt = data.body.createdAt;
-      let headingByCoords = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
-      let direction = getDirection(headingByCoords);
+      let heading = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
+      let direction = getDirection(heading);
       const latitudeDirection = data.body.latitude >= 0 ? 'N' : 'S';
       const longitudeDirection = data.body.longitude >= 0 ? 'E' : 'W';
 
-      headingByCoords = headingByCoords ? `${decimalize(headingByCoords, 1)}°` : 'N/A';
+      heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
       direction = direction || '';
       const coordsStr = `${decimalize(data.body.latitude, 10)}°${latitudeDirection}, ${decimalize(data.body.longitude, 10)}°${longitudeDirection}`;
 
-      str = `${createdAt}, 座標: ${coordsStr}, 方位: ${headingByCoords} ${direction}`;
+      str = `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction}`;
     } else {
       str = JSON.stringify(data);
     }
@@ -520,9 +524,18 @@ const poscom = () => {
     setTimeout(() => { callback() });
   }
 
-  function saveConnections() {
+  function saveConnectionsInCookie() {
     const maxAge = 60 // sec
     document.cookie = `connections=${Object.keys(connections).toString()}; oldId=${peer.id}; max-age=${maxAge}`;
+  }
+
+  function removeConnectionsInCookie() {
+    const maxAge = 0 // sec
+    document.cookie = `connections=; max-age=${maxAge}`;
+  }
+
+  function getCookieValueByKey(key) {
+    return ((`${document.cookie};`).match(key + '=([^\S;]*)')||[])[1]||'';
   }
 
   function resumeConnections() {
@@ -533,25 +546,23 @@ const poscom = () => {
     for (var i = 0; i < arr.length; i++) {
       join(arr[i]);
     }
-  }
 
-  function getCookieValueByKey(key) {
-    return ((document.cookie + ';').match(key + '=([^\S;]*)')||[])[1];
+    removeConnectionsInCookie();
   }
 
   // コントロールパネルを開く・閉じる・トグルする
   function toggleCP(command) {
-    if (command === 'open') {
-      elements.controlPanel.open = true;
-    } else if (command === 'close') {
-      elements.controlPanel.open = false;
-    } else {
-      if (elements.controlPanel.open) {
-        elements.controlPanel.open = false;
-      } else {
-        elements.controlPanel.open = true;
-      }
-    }
+    // if (command === 'open') {
+    //   elements.controlPanel.open = true;
+    // } else if (command === 'close') {
+    //   elements.controlPanel.open = false;
+    // } else {
+    //   if (elements.controlPanel.open) {
+    //     elements.controlPanel.open = false;
+    //   } else {
+    //     elements.controlPanel.open = true;
+    //   }
+    // }
   }
 
   // ==========

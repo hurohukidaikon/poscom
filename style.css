@@ -5,6 +5,9 @@
 
 * {
   box-sizing: border-box;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 html, body {
@@ -82,9 +85,6 @@ label[for="startBtn"] {
   border: none;
   color: var(--main-color);
   background: var(--sub-color);
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
   font-weight: bold;
 }
 
