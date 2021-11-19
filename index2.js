@@ -1,8 +1,8 @@
 const poscom = () => {
   // document.cookie = 'connections='
   // パラメータ
-  const getPosInterval = 10000; // ms
-  // const getPosInterval = 4 * 60 * 1000; // minutes x seconds x 100 ms
+  // const getPosInterval = 10000; // ms
+  const getPosInterval = 4 * 60 * 1000; // minutes x seconds x 100 ms
   const reconnectInterval = 1000; // ms
   const maximumAge = 100;
   const timeout = 1000;
