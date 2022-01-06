@@ -122,10 +122,8 @@ const poscom = () => {
     // Mapに位置情報を反映する
     drawMap();
 
-    send({
-      pPos: pPositions(pPositions.length - 1),
-      foPos: foPositions(foPositions.length - 1)
-    }, 'geo');
+    send(pPositions[pPositions.length - 1], 'pGeo');
+    send(foPositions[foPositions.length - 1], 'foGeo');
   }
 
   var getPosSwitcher = () => {
@@ -332,11 +330,17 @@ const poscom = () => {
     show(elements.message, message, 'prepend');
     show(elements.status, `${getTime()} ${receivedFrom} から受信しました`);
 
-    if (data.type === 'geo') {
-      // 位置情報を記録
-      pPositions.push({...data.pPos});
-      foPositions.push({...data.foPos});
+    // 位置情報を記録
+    if (data.type === 'pGeo') {
+      pPositions.push({...data.body});
     }
+    if (data.type === 'foGeo') {
+      foPositions.push({...data.body});
+    }
+    // console.log(pPositions[pPositions.length - 1].latitude);
+    // console.log(foPositions[foPositions.length - 1].latitude);
+    // マップに座標を表示する
+    drawMap();
   }
 
   // ==========
@@ -494,28 +498,23 @@ const poscom = () => {
   function dataStringify(data) {
     let str = '';
 
-    if (data.type === 'geo') {
-      const geoData = data.body;
+    if (data.type === 'pGeo' || data.type === 'foGeo') {
+      const createdAt = data.body.createdAt;
+      let heading = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
+      let direction = getDirection(heading);
+      const latitudeDirection = data.body.latitude >= 0 ? 'N' : 'S';
+      const longitudeDirection = data.body.longitude >= 0 ? 'E' : 'W';
 
-      for (var i = 0; i < geoData.keys.length; i++) {
-        const key = geoData.keys[i];
-        const createdAt = geoData[key].createdAt;
-        let heading = getHeading(beforeLatitude, beforeLongitude, geoData[key].latitude, geoData[key].longitude);
-        let direction = getDirection(heading);
-        const latitudeDirection = geoData[key].latitude >= 0 ? 'N' : 'S';
-        const longitudeDirection = geoData[key].longitude >= 0 ? 'E' : 'W';
+      heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
+      direction = direction || '';
+      const coordsStr = `${decimalize(data.body.latitude, 10)}°${latitudeDirection}, ${decimalize(data.body.longitude, 10)}°${longitudeDirection}`;
 
-        heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
-        direction = direction || '';
-        const coordsStr = `${decimalize(geoData[key].latitude, 10)}°${latitudeDirection}, ${decimalize(geoData[key].longitude, 10)}°${longitudeDirection}`;
-
-        if (key === 'pPos') {
-          str += 'パフォーマー = '
-        } else if (key === 'foPos') {
-          str += '飛行物体 = '
-        }
-        str = `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction} `;
+      if (data.type === 'pGeo') {
+        str += 'パ) '
+      } else {
+        str += '飛) '
       }
+      str += `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction}`;
     } else {
       str = JSON.stringify(data);
     }
