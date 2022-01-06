@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width">
-    <title>POS/COM</title>
+    <title>POS/COM v2</title>
     <script src="https://unpkg.com/peerjs@1.3.1/dist/peerjs.min.js"></script>
     <script src="index2.js" charset="utf-8"></script>
     <link rel="stylesheet" href="style.css">
@@ -11,7 +11,7 @@
   <body>
     <details id="controlPanel" open>
       <summary>コントロールパネル</summary>
-      <h1>POS/COM</h1>
+      <h1>POS/COM v2</h1>
       <h2>My ID:</h2>
       <input type="text" id="id" placeholder="しばらくすると、あなたのIDが表示されます" disabled>
       <button id="copyBtn" disabled>コピー</button>
@@ -24,9 +24,11 @@
       <div id="status"></div>
       <div class="mode-wrapper">
         <input type="checkbox" id="startBtn" disabled>
-        <label for="startBtn" id="startBtnLabel">送信スタート</label>
+        <label for="startBtn" id="startBtnLabel">スタート</label>
       </div>
     </details>
+    <div id="map"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBMgjmlkWWwUL_hDhp88LlrQfUo00aUWug&callback=initMap&v=weekly" async></script>
     <div class="message-wrapper">
       <h2>Messages:</h2>
       <div id="message"></div>

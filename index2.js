@@ -1,12 +1,24 @@
+var map;
+function initMap() {
+  map = new google.maps.Map(document.getElementById("map"), {
+    center: { lat: 0, lng: 0 },
+    zoom: 15,
+    disableDefaultUI: true,
+    styles: [
+      {
+        featureType: "all",
+        elementType: "labels",
+        stylers: [{ visibility: "off" }],
+      },
+    ]
+  });
+}
+
 const poscom = () => {
-  // document.cookie = 'connections='
   // パラメータ
-  // const getPosInterval = 10000; // ms
-  const getPosInterval = 4 * 60 * 1000; // minutes x seconds x 100 ms
+  const getPosInterval = 10 * 1000; // minutes x seconds x 1000 ms
+  const sendInterval = 4 * 60 * 1000;
   const reconnectInterval = 1000; // ms
-  const maximumAge = 100;
-  const timeout = 1000;
-  const enableHighAccuracy = true;
 
   // 内部変数
   let peer = null;
@@ -14,6 +26,10 @@ const poscom = () => {
   let beforeLatitude, beforeLongitude;
   let mode = 'none';
   let getPosIntervalId;
+  let pPositions = [];
+  let foPositions = [];
+  let pMarker; // Google mapのマーカー
+  let foMarker; // Google mapのマーカー
 
   // HTMLエレメント
   const elements = {
@@ -65,28 +81,50 @@ const poscom = () => {
       });
     }
 
+    const maximumAge = 100;
+    const timeout = 1000;
+    const enableHighAccuracy = true;
     getPos({maximumAge, timeout, enableHighAccuracy})
-      .then((rawData) => { return getPosSuccess(rawData) })
-      .then((data) => { send(data, 'geo') })
-      .catch((err) => { getPosError(err) });
+      .then((rawData) => { getPosSuccess(rawData) })
+      .catch((err) => { return err; });
   }
 
   // GPS取得成功
-  function getPosSuccess(pos) {
-    return {
+  function getPosSuccess(rawData) {
+    const data = {
       createdAt: getTime(),
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-      altitude: pos.coords.altitude,
-      heading: pos.coords.heading,
-      accuracy: pos.coords.accuracy,
-      altitudeAccuracy: pos.coords.altitudeAccuracy
-    }
-  }
+      latitude: rawData.coords.latitude,
+      longitude: rawData.coords.longitude,
+      altitude: rawData.coords.altitude,
+      heading: rawData.coords.heading,
+      accuracy: rawData.coords.accuracy,
+      altitudeAccuracy: rawData.coords.altitudeAccuracy
+    };
 
-  // GPS取得失敗
-  function getPosError(err) {
-    return err;
+    pPositions.push({...data}); // dataの中身をコピーしてpushする（参照渡しを回避）
+
+    // 飛行物体の最初の位置はパフォーマーの現在地を元にランダムに少しずらした座標とする
+    // -1 < x <= -0.5 かつ 0.5 <= x < 1の範囲で乱数を生成
+    if (pPositions.length === 1) {
+      foPositions.push({...data});
+      foPositions[0].latitude += .0025 * (Math.random() * .5 + .5) * Math.round(2 * Math.random() - .5);
+      foPositions[0].longitude += .0025 * (Math.random() * .5 + .5) * Math.round(2 * Math.random() - .5);
+    }
+
+    // 一定間隔（4分ごと）で飛行物体の位置情報を記録
+    if (pPositions.length % (4 * 60 / (getPosInterval / 1000)) === 0) {
+      foPositions.push({...data});
+    } else {
+      foPositions.push(foPositions[foPositions.length - 1]);
+    }
+
+    // Mapに位置情報を反映する
+    drawMap();
+
+    send({
+      pPos: pPositions(pPositions.length - 1),
+      foPos: foPositions(foPositions.length - 1)
+    }, 'geo');
   }
 
   var getPosSwitcher = () => {
@@ -98,6 +136,11 @@ const poscom = () => {
       show(elements.status, `${getTime()} 位置情報取得を停止`);
       clearInterval(getPosIntervalId);
     }
+  }
+
+  function deletePositionRecord() {
+    pPositions = [];
+    foPositions = [];
   }
 
   // ==========
@@ -148,12 +191,6 @@ const poscom = () => {
 
       connections[id] = c;
       ready(id);
-
-      // toggleCP('close');
-
-      // GPSの送信をスタートさせる
-      // elements.startBtn.checked = true;
-      // modeChecker(getPosSwitcher);
     });
 
     // 通信回線が切断された時などに発火
@@ -227,13 +264,10 @@ const poscom = () => {
   function ready(id) {
     connections[id].on('open', () => {
       show(elements.status, `${getTime()} ${id} に接続しました`);
-
-      // toggleCP('close');
     });
 
     connections[id].on('data', (data) => {
       receive(data, id);
-      // toggleCP('close');
     });
 
     connections[id].on('close', () => {
@@ -293,6 +327,12 @@ const poscom = () => {
     let message = `RECEIVED: ${dataStringify(data)}`;
     show(elements.message, message, 'prepend');
     show(elements.status, `${getTime()} ${receivedFrom} から受信しました`);
+
+    if (data.type === 'geo') {
+      // 位置情報を記録
+      pPositions.push({...data.pPos});
+      foPositions.push({...data.foPos});
+    }
   }
 
   // ==========
@@ -451,17 +491,27 @@ const poscom = () => {
     let str = '';
 
     if (data.type === 'geo') {
-      const createdAt = data.body.createdAt;
-      let heading = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
-      let direction = getDirection(heading);
-      const latitudeDirection = data.body.latitude >= 0 ? 'N' : 'S';
-      const longitudeDirection = data.body.longitude >= 0 ? 'E' : 'W';
+      const geoData = data.body;
 
-      heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
-      direction = direction || '';
-      const coordsStr = `${decimalize(data.body.latitude, 10)}°${latitudeDirection}, ${decimalize(data.body.longitude, 10)}°${longitudeDirection}`;
+      for (var i = 0; i < geoData.keys.length; i++) {
+        const key = geoData.keys[i];
+        const createdAt = geoData[key].createdAt;
+        let heading = getHeading(beforeLatitude, beforeLongitude, geoData[key].latitude, geoData[key].longitude);
+        let direction = getDirection(heading);
+        const latitudeDirection = geoData[key].latitude >= 0 ? 'N' : 'S';
+        const longitudeDirection = geoData[key].longitude >= 0 ? 'E' : 'W';
 
-      str = `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction}`;
+        heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
+        direction = direction || '';
+        const coordsStr = `${decimalize(geoData[key].latitude, 10)}°${latitudeDirection}, ${decimalize(geoData[key].longitude, 10)}°${longitudeDirection}`;
+
+        if (key === 'pPos') {
+          str += 'パフォーマー = '
+        } else if (key === 'foPos') {
+          str += '飛行物体 = '
+        }
+        str = `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction} `;
+      }
     } else {
       str = JSON.stringify(data);
     }
@@ -472,13 +522,16 @@ const poscom = () => {
   function modeChecker(callback) {
     if (elements.startBtn.checked) {
       mode = 'sender';
-      elements.startBtnLabel.innerHTML = '送信ストップ';
+      elements.startBtnLabel.innerHTML = 'ストップ';
     } else {
       mode = 'receiver';
-      elements.startBtnLabel.innerHTML = '送信スタート';
+      elements.startBtnLabel.innerHTML = 'スタート';
     }
 
     show(elements.status, `${getTime()} ${mode} モードになりました`);
+
+    // 位置情報を削除
+    deletePositionRecord();
 
     if (!callback) {
       return;
@@ -525,6 +578,57 @@ const poscom = () => {
       } else {
         elements.controlPanel.open = true;
       }
+    }
+  }
+
+  function drawMap() {
+    // 古いマーカーを削除
+    if (pMarker) {
+      pMarker.setMap(null);
+    }
+    if (foMarker) {
+      foMarker.setMap(null);
+    }
+
+    // // マップの中心座標を指定
+    // const center = new google.maps.LatLng(pPositions[pPositions.length - 1].latitude, pPositions[pPositions.length - 1].longitude)
+    // map.setCenter(center);
+
+    // マーカーを設置
+    pMarker = new google.maps.Marker({
+      position: {
+        lat: pPositions[pPositions.length - 1].latitude,
+        lng: pPositions[pPositions.length - 1].longitude
+      },
+      label: {
+        text: "‍‍🚶‍♂️",
+        fontSize: "64px"
+      },
+      title: "Performer"
+    });
+    foMarker = new google.maps.Marker({
+      position: {
+        lat: foPositions[foPositions.length - 1].latitude,
+        lng: foPositions[foPositions.length - 1].longitude
+      },
+      label: {
+        text: "🛸",
+        fontSize: "64px"
+      },
+      title: "Fling Object"
+    });
+    pMarker.setMap(map);
+    foMarker.setMap(map);
+
+    // マーカーの位置に合わせて地図の中心位置とズーム倍率を最適化
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(pMarker.position);
+    bounds.extend(foMarker.position);
+    map.fitBounds(bounds, 100);
+
+    // ズームしすぎな時は適度に引く
+    if (map.getZoom() > 18) {
+      map.setZoom(18);
     }
   }
 
