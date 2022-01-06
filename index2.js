@@ -211,8 +211,11 @@ const poscom = () => {
     });
 
     peer.on('error', (err) => {
+      // 通信エラーのIDをリストから削除する
+      const errorId = err.message.split('Could not connect to peer ')[1];
+      delete connections[errorId];
+
       show(elements.status, `${getTime()} 通信エラーが発生しました(${err.message})`);
-      console.log(err);
 
       toggleCP('open');
     });
