@@ -111,9 +111,10 @@ const poscom = () => {
       foPositions[0].longitude += .0025 * (Math.random() * .5 + .5) * Math.round(2 * Math.random() - .5);
     }
 
-    // 一定間隔（4分ごと）で飛行物体の位置情報を記録
-    if (pPositions.length % (4 * 60 / (getPosInterval / 1000)) === 0) {
-      foPositions.push({...data});
+    // 4分(=24回)ごとに4分(=24回)前のパフォーマーの位置を飛行物体の位置として記録
+    const numDelay = 4 * 60 / (getPosInterval / 1000);
+    if (pPositions.length >= numDelay && pPositions.length % numDelay === 0) {
+      foPositions.push(pPositions[pPositions.length - numDelay]);
     } else {
       foPositions.push(foPositions[foPositions.length - 1]);
     }
@@ -590,10 +591,6 @@ const poscom = () => {
       foMarker.setMap(null);
     }
 
-    // // マップの中心座標を指定
-    // const center = new google.maps.LatLng(pPositions[pPositions.length - 1].latitude, pPositions[pPositions.length - 1].longitude)
-    // map.setCenter(center);
-
     // マーカーを設置
     pMarker = new google.maps.Marker({
       position: {
@@ -601,7 +598,7 @@ const poscom = () => {
         lng: pPositions[pPositions.length - 1].longitude
       },
       label: {
-        text: "‍‍🚶‍♂️",
+        text: "‍‍‍🚶",
         fontSize: "64px"
       },
       title: "Performer"
