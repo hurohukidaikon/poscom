@@ -513,12 +513,12 @@ const poscom = () => {
         const coordsStr = `${decimalize(data.body[key].latitude, 10)}°${latitudeDirection}, ${decimalize(data.body[key].longitude, 10)}°${longitudeDirection}`;
 
         if (key === 'pPos') {
-          str += 'パ) '
+          str += '🚶) '
         } else if (key === 'foPos') {
-          str += '飛) '
+          str += '🛸) '
         }
 
-        str += `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction}`;
+        str += `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction} `;
       });
     } else {
       str = JSON.stringify(data);
