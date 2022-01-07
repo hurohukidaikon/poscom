@@ -17,7 +17,6 @@ function initMap() {
 const poscom = () => {
   // パラメータ
   const getPosInterval = 10 * 1000; // minutes x seconds x 1000 ms
-  const sendInterval = 4 * 60 * 1000;
   const reconnectInterval = 1000; // ms
 
   // 内部変数
@@ -122,8 +121,10 @@ const poscom = () => {
     // Mapに位置情報を反映する
     drawMap();
 
-    send(pPositions[pPositions.length - 1], 'pGeo');
-    send(foPositions[foPositions.length - 1], 'foGeo');
+    send({
+      pPos: pPositions[pPositions.length - 1],
+      foPos: foPositions[foPositions.length - 1]
+    }, 'geo');
   }
 
   var getPosSwitcher = () => {
@@ -330,17 +331,18 @@ const poscom = () => {
     show(elements.message, message, 'prepend');
     show(elements.status, `${getTime()} ${receivedFrom} から受信しました`);
 
-    // 位置情報を記録
-    if (data.type === 'pGeo') {
-      pPositions.push({...data.body});
+    if (data.type === 'geo') {
+      // 位置情報を記録
+      if (data.body.pPos) {
+        pPositions.push({...data.body.pPos});
+      }
+      if (data.body.foPos) {
+        foPositions.push({...data.body.foPos});
+      }
+
+      // マップに座標を表示する
+      drawMap();
     }
-    if (data.type === 'foGeo') {
-      foPositions.push({...data.body});
-    }
-    // console.log(pPositions[pPositions.length - 1].latitude);
-    // console.log(foPositions[foPositions.length - 1].latitude);
-    // マップに座標を表示する
-    drawMap();
   }
 
   // ==========
@@ -428,7 +430,6 @@ const poscom = () => {
       }
       elements.connections.innerHTML += `${keys[i]}<br>`
     }
-    console.log(connections);
   }
 
   // テキストをコピーする
@@ -498,23 +499,26 @@ const poscom = () => {
   function dataStringify(data) {
     let str = '';
 
-    if (data.type === 'pGeo' || data.type === 'foGeo') {
-      const createdAt = data.body.createdAt;
-      let heading = getHeading(beforeLatitude, beforeLongitude, data.body.latitude, data.body.longitude);
-      let direction = getDirection(heading);
-      const latitudeDirection = data.body.latitude >= 0 ? 'N' : 'S';
-      const longitudeDirection = data.body.longitude >= 0 ? 'E' : 'W';
+    if (data.type === 'geo') {
+      Object.keys(data.body).forEach((key) => {
+        const createdAt = data.body[key].createdAt;
+        let heading = getHeading(beforeLatitude, beforeLongitude, data.body[key].latitude, data.body[key].longitude);
+        let direction = getDirection(heading);
+        const latitudeDirection = data.body[key].latitude >= 0 ? 'N' : 'S';
+        const longitudeDirection = data.body[key].longitude >= 0 ? 'E' : 'W';
 
-      heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
-      direction = direction || '';
-      const coordsStr = `${decimalize(data.body.latitude, 10)}°${latitudeDirection}, ${decimalize(data.body.longitude, 10)}°${longitudeDirection}`;
+        heading = heading ? `${decimalize(heading, 1)}°` : 'N/A';
+        direction = direction || '';
+        const coordsStr = `${decimalize(data.body[key].latitude, 10)}°${latitudeDirection}, ${decimalize(data.body[key].longitude, 10)}°${longitudeDirection}`;
 
-      if (data.type === 'pGeo') {
-        str += 'パ) '
-      } else {
-        str += '飛) '
-      }
-      str += `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction}`;
+        if (key === 'pPos') {
+          str += 'パ) '
+        } else if (key === 'foPos') {
+          str += '飛) '
+        }
+
+        str += `${createdAt}, 座標: ${coordsStr}, 方位: ${heading} ${direction}`;
+      });
     } else {
       str = JSON.stringify(data);
     }
