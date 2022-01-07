@@ -41,7 +41,8 @@ const poscom = () => {
     joinBtn: document.getElementById('joinBtn'),
     controlPanel: document.getElementById('controlPanel'),
     startBtn: document.getElementById('startBtn'),
-    startBtnLabel: document.getElementById('startBtnLabel')
+    startBtnLabel: document.getElementById('startBtnLabel'),
+    dlBtn: document.getElementById('dlBtn')
   }
 
   // テキスト
@@ -634,6 +635,18 @@ const poscom = () => {
       map.setZoom(18);
     }
   }
+
+  function download(content, fileName, contentType) {
+    let a = document.createElement('a');
+    let file = new Blob([content], {type: contentType});
+    a.href = URL.createObjectURL(file);
+    a.download = fileName;
+    a.click();
+  }
+
+  elements.dlBtn.addEventListener('click', () => {
+    download(JSON.stringify({pPos: pPositions, foPos: foPositions}), `FlingObject_${getTime()}.json`, 'text/plain');
+  });
 
   // ==========
   // execute
