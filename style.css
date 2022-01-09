@@ -120,14 +120,6 @@ label[for="startBtn"] {
   text-align: center;
 }
 
-#startBtn:checked + label[for="startBtn"] {
-  /* color: #f00; */
+#map {
+  height: 300px;
 }
-
-/* input[type='radio'] {
-
-} */
-
-/* input[type='text']:checked {
-
-} */
